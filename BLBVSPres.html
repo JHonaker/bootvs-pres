@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Variable Selection with Boostrap for GLM in Massive Datasets</title>
+<meta name="author" content="(John Honaker)"/>
+<style type="text/css">
+.underline { text-decoration: underline; }
+</style>
+<link rel="stylesheet" href="http://cdn.jsdelivr.net/reveal.js/3.0.0/css/reveal.css"/>
+
+<link rel="stylesheet" href="http://cdn.jsdelivr.net/reveal.js/3.0.0/css/theme/moon.css" id="theme"/>
+
+
+<!-- If the query includes 'print-pdf', include the PDF print sheet -->
+<script>
+    if( window.location.search.match( /print-pdf/gi ) ) {
+        var link = document.createElement( 'link' );
+        link.rel = 'stylesheet';
+        link.type = 'text/css';
+        link.href = 'http://cdn.jsdelivr.net/reveal.js/3.0.0/css/print/pdf.css';
+        document.getElementsByTagName( 'head' )[0].appendChild( link );
+    }
+</script>
+<script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+<section id="sec-title-slide"><h2>Variable Selection with Boostrap for GLM in Massive Datasets</h2></br><h3>John Honaker</h3>
+</section>
+<section>
+<section id="slide-org195ccd9">
+<h2 id="org195ccd9">Motivation</h2>
+<p>
+The Bag of Little Bootstraps variable selection method was introduced to give a boostrap variable selection process for massive data sets.
+</p>
+
+<p>
+The method should have comparable accuracy to the naive estimator, but hopefully be much faster computationally.
+</p>
+</section>
+</section>
+<section>
+<section id="slide-orgb3caeb8">
+<h2 id="orgb3caeb8">Bag of Little Bootstraps</h2>
+<p>
+The algorithm for the BLBVS procedure is as follows. Partition the set of observed data \((x_1, ..., x_n)\) into \(s\) randomly selected subsets (called bags) of size \(b = \{n^\gamma : \gamma \in \left(0, 1\right) \}\) chosen <i>without replacement</i>. Each subset produces \(r\) bootstrap resamples chosen <i>with replacement</i> of size \(n\), the original sample size. Notice that each resample can only have at most \(b\) distinct data points.
+</p>
+</section>
+<section id="slide-org206c2dc">
+<h3 id="org206c2dc">Notation</h3>
+<p>
+Let \(\hat{\beta_{ij}}\) be a vetor of estimators for the \(j\text{th}\) resample of the \(i\text{th}\) subset, and \(\hat{\xi}_i\) be the standard error of the parameter estimation in the \(i\text{th}\) subset. The overall standard error \(\hat{\xi}\) is simply the average over the \(\hat{\xi}_i\).
+</p>
+</section>
+<section id="slide-orge59db77">
+<h3 id="orge59db77">Algorithm</h3>
+
+<div class="figure">
+<p><img src="./algopic.png" alt="algopic.png" />
+</p>
+</div>
+</section>
+</section>
+<section>
+<section id="slide-orgef5d726">
+<h2 id="orgef5d726">BLB Variable Selection</h2>
+<div class="outline-text-2" id="text-orgef5d726">
+</div></section>
+<section id="slide-orgbf8621e">
+<h3 id="orgbf8621e">Voting</h3>
+<ul>
+<li>Variables are selected by votes</li>
+<li>Each resample can give one vote to cast for each variable</li>
+<li>A vote is cast if the parameter is not estimated to be zero</li>
+<li>If the total proportion of votes is greater than a chosen cutoff, \(p_k\), it is selected</li>
+
+</ul>
+</section>
+<section id="slide-org48252ac">
+<h3 id="org48252ac">Casting a Vote</h3>
+<p>
+We consider indicator functions, \(\mathbf{I} \left( \hat{\beta}_{ijk} \neq 0 \right)\), to represent whether or not the parameter estimate \(k\) in the \(j\text{th}\) resample of the \(i\text{th}\) subset was set to zero.
+</p>
+</section>
+<section id="slide-orgca086af">
+<h3 id="orgca086af">Selection Based on Votes</h3>
+<ul>
+<li>Vote criterion similar to Random Forests</li>
+<li>Each bootstrap sample is given an equally weighted vote, for a total of \(s \times r\) votes</li>
+
+</ul>
+
+<p>
+\(p_k = \frac{\sum^s_{i=1} \sum^r_{j=1} \mathbf{I}(\hat{\beta}_k (X_{ij}) \neq 0)}{s \times r}\)
+</p>
+
+</section>
+</section>
+<section>
+<section id="slide-org34b0523">
+<h2 id="org34b0523">BLBVS with Group Lasso Penalty for GLM</h2>
+<div class="outline-text-2" id="text-org34b0523">
+</div></section>
+<section id="slide-orgfce962a">
+<h3 id="orgfce962a">Extending to GLM</h3>
+<p>
+The variable selection method (BLBVS) works perfectly well for a traditional linear regression with continuous predictors. However, it does not handle generalized linear models with categorical predictors or different link functions properly.
+</p>
+</section>
+<section id="slide-orgc69a037">
+<h3 id="orgc69a037">Categorical Predictors</h3>
+<p>
+For a categorical predictor with \(k\) categories, \(k-1\) dummy variables must be added to the model. 
+</p>
+</section>
+<section id="slide-orgb437af3">
+<h3 id="orgb437af3">Problems with Traditional LASSO</h3>
+<ul>
+<li>Under the original Lasso framework, the dummy variables are penalized individually</li>
+<li>May cause a partial choice of some of levels of the predictor
+<ul>
+<li>Ideally, all the dummy variables from a certain category should be chosen or eliminated together</li>
+
+</ul></li>
+
+</ul>
+</section>
+<section id="slide-org97903a9">
+<h3 id="org97903a9">Group LASSO</h3>
+<p>
+The Group Lasso, can overcome these issues by combining sets of related dummy variables and penalizing them together.
+</p>
+
+<p>
+\[\hat{\beta}_\lambda = argmin(\| Y - X \beta \|^2_2 + \lambda \sum^G_{g=1} \|\beta I_g \|_2)\] where \(I_g\) is the index set of the \(g\text{th}\) group of variables.
+</p>
+
+</section>
+<section id="slide-orgfea3297">
+<h3 id="orgfea3297">Extension to GLMs</h3>
+<p>
+To extend the method to a GLM framework, the cost function must be extended to incorporate the link function.
+</p>
+
+<p>
+The first term of the Lasso cost function then becomes \(\| Y - g^{-1}(X\beta) \|^2_2\) insetad of simply \(\| Y - X\beta \|^2_2\).
+</p>
+</section>
+<section id="slide-orgd23d9bc">
+<h4 id="orgd23d9bc">Logistic Regression</h4>
+<ul>
+<li>\(Y_i\) - a binary response variable</li>
+<li>\(\mathbf{X}\) - matrix of p iid predictor variables</li>
+<li>The predictor variables are divided into \(G\) groups
+<ul>
+<li>Each continuous predictor is its own group with \(df_g = 1\)</li>
+<li>Each set of dummy variables for a categorical variable (with \(k\) levels) is collected as one group with \(df_g = k - 1\)</li>
+
+</ul></li>
+
+</ul>
+</section>
+<section id="slide-orgb00a93f">
+<h4 id="orgb00a93f">Logistic Model with Groupings</h4>
+<p>
+\(\mathbf{X}\) can now be partitioned groupwise by columns so that the linear model becomes \[g(\mathbf{Y}) = log \left( \frac{p_\beta(\mathbf{X})}{1 - p_\beta (\mathbf{X})} \right) = \beta_0 + \sum^G_{g=1} X^T_g \beta_g \] where \(p_\beta(x) = P_\beta(Y = 1 | x)\) and \(\beta_g \in \mathcal{R}^{df_g}\). 
+</p>
+</section>
+<section id="slide-orgdb756a8">
+<h4 id="orgdb756a8">Reformulation</h4>
+<p>
+This problem is equivalent to minimizing the convex function: \[S_\lambda(\beta) = -l(\beta) + \lambda \sum^G_{g=1} s(df_g) \|\beta_g \|_1\] where \(l(\cdot)\) is the log-likelihood and \(s(\cdot)\) is chosen to rescale the regularization term with respect to the degrees of freedom in the group. 
+</p>
+
+<p>
+Typically, the value of \(\lambda\) is chosen via cross-validation.
+</p>
+
+</section>
+</section>
+<section>
+<section id="slide-orgf11a9a8">
+<h2 id="orgf11a9a8">Simulations</h2>
+<div class="outline-text-2" id="text-orgf11a9a8">
+</div></section>
+<section id="slide-org7716e63">
+<h3 id="org7716e63">Data Generation</h3>
+<ul>
+<li>Logistic Regression with 35 continuous predictors</li>
+<li>20,000 observations</li>
+<li>\(Y_i\) drawn from Bernoulli(p) given by LR model</li>
+<li>True variable group: \(\mathcal{I}_T = \mathcal{I}_{1, 2, 4, 6, 7}\)</li>
+<li>True parameters given \(\beta = 10\)</li>
+<li>Others drawn from Normal(0, 1)</li>
+
+</ul>
+</section>
+<section id="slide-org58b111c">
+<h3 id="org58b111c">Variable Groupings</h3>
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Index Var</th>
+<th scope="col" class="org-left">Index Variables</th>
+<th scope="col" class="org-left">Index Var</th>
+<th scope="col" class="org-left">Index Variables</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">\(\mathcal{I}_1\)</td>
+<td class="org-left">\(\left\{ 1, ..., 5 \right\}\)</td>
+<td class="org-left">\(\mathcal{I}_5\)</td>
+<td class="org-left">\(\left\{ 21, ..., 25 \right\}\)</td>
+</tr>
+
+<tr>
+<td class="org-left">\(\mathcal{I}_2\)</td>
+<td class="org-left">\(\left\{ 6, ..., 9 \right\}\)</td>
+<td class="org-left">\(\mathcal{I}_6\)</td>
+<td class="org-left">\(\left\{ 26, ..., 28 \right\}\)</td>
+</tr>
+
+<tr>
+<td class="org-left">\(\mathcal{I}_3\)</td>
+<td class="org-left">\(\left\{ 10, ..., 15 \right\}\)</td>
+<td class="org-left">\(\mathcal{I}_7\)</td>
+<td class="org-left">\(\left\{ 29, ..., 31 \right\}\)</td>
+</tr>
+
+<tr>
+<td class="org-left">\(\mathcal{I}_4\)</td>
+<td class="org-left">\(\left\{ 16, ..., 20 \right\}\)</td>
+<td class="org-left">\(\mathcal{I}_8\)</td>
+<td class="org-left">\(\left\{ 32, ..., 35 \right\}\)</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="slide-orgfdef6a6">
+<h3 id="orgfdef6a6">Simulation Setup</h3>
+<ul>
+<li>\(b = n^\gamma\) - number of distinct observations in a subset</li>
+<li>\(\gamma \in \left\{ 0.6, 0.7, 0.8 \right\}\)</li>
+<li>\(r = 100\) - Number of resamples</li>
+<li>Coefficients were considered groupwise based on previous subsets</li>
+
+</ul>
+
+</section>
+<section id="slide-org3139416">
+<h3 id="org3139416">Results</h3>
+
+<div class="figure">
+<p><img src="./simresult.png" alt="simresult.png" />
+</p>
+</div>
+</section>
+<section id="slide-orgb43772a">
+<h3 id="orgb43772a">Evaluation</h3>
+<ul>
+<li>Both procedures performed extremely well</li>
+<li>Chose correct variables every time</li>
+<li>Performance of BootVS is superior to BLBVS when \(\gamma\) is small
+<ul>
+<li>Samples from subsets instead of entire dataset</li>
+<li>BootVS contains approx. \(0.632n\) unique data points vs BLBVS's \(n^\gamma\)</li>
+
+</ul></li>
+
+</ul>
+
+</section>
+</section>
+<section>
+<section id="slide-org7983f54">
+<h2 id="org7983f54">"Convergence" Properties</h2>
+<ul>
+<li>The correctness of selection in both methods is identical</li>
+<li>The convergence of BLBVS is significantly better than BootVS</li>
+
+</ul>
+
+</section>
+<section id="slide-orga191f30">
+<h3 id="orga191f30">Visualizing Convergence</h3>
+
+<div class="figure">
+<p><img src="./relerror.png" alt="relerror.png" />
+</p>
+</div>
+
+</section>
+<section id="slide-orga443d38">
+<h3 id="orga443d38">Paralellization of Bags</h3>
+<p>
+The true power of the BLBVS is the ability to send the subsets to different cores or different machines to perform perfectly contained bootstrap procedures. The votes can then be combined back on the original machine to perform inference.
+</p>
+
+<p>
+For those of you familiar with MapReduce this will sound familiar.
+</p>
+
+</section>
+<section id="slide-org150b695">
+<h3 id="org150b695">Performance of BLBVS</h3>
+<p>
+The algorithm was stressed to an even more computationally intensive problem. The number of predictors was increased to 50, and \(n\) values were considered in the range of \(100,000\) to \(80,000,000\). 80GB in the largest case.
+</p>
+
+<p>
+BLBVS greatly outperformed BootVS in terms of computational complexity.
+</p>
+
+</section>
+<section id="slide-org7ad7e84">
+<h3 id="org7ad7e84">Visualizing Computation</h3>
+
+<div class="figure">
+<p><img src="./compcost.png" alt="compcost.png" />
+</p>
+</div>
+
+<p>
+Left Panel: Time to same accuracy
+</p>
+
+<p>
+Right Panel: Processing time of full dataset
+</p>
+
+</section>
+</section>
+<section>
+<section id="slide-orgf493700">
+<h2 id="orgf493700">Real Data Analysis</h2>
+<div class="outline-text-2" id="text-orgf493700">
+</div></section>
+<section id="slide-org6819029">
+<h3 id="org6819029">Data</h3>
+<p>
+Credit card records from Taiwanese bank
+</p>
+<ul>
+<li>Goal: Select predictors that important for predicting credit risk</li>
+<li>Greater than 800 million observations (11 GB)</li>
+<li>25 Categorical predictors</li>
+<li>Binary response (1 - Risky, 0 - Not risky)</li>
+
+</ul>
+</section>
+<section id="slide-org1e2d6f3">
+<h3 id="org1e2d6f3">Selected Variables</h3>
+<p>
+Consistent across methods
+</p>
+<ul>
+<li>Force to stop credit card</li>
+<li>Living Area</li>
+<li>Education Background</li>
+<li>Occupation</li>
+<li>Housing Situation</li>
+<li>Avg. Monthly Income</li>
+<li>Family Economic Level</li>
+
+</ul>
+</section>
+<section id="slide-orgda82c30">
+<h3 id="orgda82c30">Comparison of MSE</h3>
+<p>
+The MSE of the BLBVS method estimates converged much quicker than BootVS.
+</p>
+
+
+<div class="figure">
+<p><img src="./realresults.png" alt="realresults.png" />
+</p>
+</div>
+
+</section>
+</section>
+<section>
+<section id="slide-org33edfa7">
+<h2 id="org33edfa7">Conclusions</h2>
+<ul>
+<li>The method is computationally much faster</li>
+<li>This efficiency allows more complicated models and regularization techniques
+<ul>
+<li>i.e. Group LASSO</li>
+
+</ul></li>
+<li>Their simulation setup was quite simple
+<ul>
+<li>The dataset was large but not very complex</li>
+
+</ul></li>
+<li>Selecting \(\gamma\) is hard in very large dimensional settings</li>
+<li>Robustness to outliers had not been studied extensively</li>
+
+</ul>
+</section>
+</section>
+</div>
+</div>
+<script src="http://cdn.jsdelivr.net/reveal.js/3.0.0/lib/js/head.min.js"></script>
+<script src="http://cdn.jsdelivr.net/reveal.js/3.0.0/js/reveal.js"></script>
+
+<script>
+// Full list of configuration options available here:
+// https://github.com/hakimel/reveal.js#configuration
+Reveal.initialize({
+
+controls: true,
+progress: true,
+history: false,
+center: true,
+slideNumber: 'c',
+rollingLinks: false,
+keyboard: true,
+overview: true,
+
+theme: Reveal.getQueryHash().theme, // available themes are in /css/theme
+transition: Reveal.getQueryHash().transition || 'default', // default/cube/page/concave/zoom/linear/fade/none
+transitionSpeed: 'default',
+multiplex: {
+    secret: '', // null if client
+    id: '', // id, obtained from socket.io server
+    url: '' // Location of socket.io server
+},
+
+// Optional libraries used to extend on reveal.js
+dependencies: [
+ { src: 'http://cdn.jsdelivr.net/reveal.js/3.0.0/lib/js/classList.js', condition: function() { return !document.body.classList; } },
+ { src: 'http://cdn.jsdelivr.net/reveal.js/3.0.0/plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+ { src: 'http://cdn.jsdelivr.net/reveal.js/3.0.0/plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+ { src: 'http://cdn.jsdelivr.net/reveal.js/3.0.0/plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+ { src: 'http://cdn.jsdelivr.net/reveal.js/3.0.0/plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }]
+});
+</script>
+</body>
+</html>
